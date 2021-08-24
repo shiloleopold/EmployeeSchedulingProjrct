@@ -1,4 +1,6 @@
 from ortools.sat.python import cp_model
+from tkinter import *
+
 
 
 def main():
@@ -86,6 +88,34 @@ def main():
           '(out of', num_nurses * min_shifts_per_nurse, ')')
     print('  - wall time       : %f s' % solver.WallTime())
 
+class Checkbar(Frame):
+   def __init__(self, parent=None, picks=[], side=LEFT, anchor=W):
+      Frame.__init__(self, parent)
+      self.vars = []
+      for pick in picks:
+         var = IntVar()
+         chk = Checkbutton(self, text=pick, variable=var)
+         chk.pack(side=side, anchor=anchor, expand=YES)
+         self.vars.append(var)
+   def state(self):
+      return map((lambda var: var.get()), self.vars)
+
+
+def view():
+    root = Tk()
+    myLabel = Label(root, text="בחר משמרות שאתה לא מעוניין לעבוד בהם")
+    myLabel.pack()
+    lng = Checkbar(root, ['ראשון בוקר', 'ראשון ערב', 'שני בוקר', 'שני ערב', 'שלישי בוקר', 'שלישי ערב', 'רביעי בוקר', 'רביעי ערב', 'חמישי בוקר', 'חמישי ערב', 'שישי בוקר', 'שישי ערב', 'שבת בוקר','שבת ערב' ])
+    lng.pack(side=TOP, fill=X)
+    lng.config(relief=GROOVE, bd=2)
+    Button(root, text='סיום', command=root.quit).pack(side=BOTTOM)
+    root.mainloop()
+    result = []
+    for var in lng.vars:
+        result.append(var.get())
+    print(result)
+    return result
 
 if __name__ == '__main__':
+    result = view()
     main()

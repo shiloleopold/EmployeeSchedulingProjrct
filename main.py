@@ -6,7 +6,11 @@ num_nurses = 5
 num_shifts = 2
 num_days = 7
 
-def calculate_shifts(shift_requests):
+def calculate_shifts(workers):
+    shift_requests = []
+    for worker in workers:
+        shift_requests.append(worker.get_shifts_array())
+
     # This program tries to find an optimal assignment of nurses to shifts
     # (2 shifts per day, for 7 days), subject to some constraints (see below).
     # Each nurse can request to be assigned to specific shifts.
@@ -154,10 +158,11 @@ def view():
     return worker
 
 if __name__ == '__main__':
-    result = []
+    workers = []
     for i in range(num_nurses):
         worker = view()
+        workers.append(worker)
         worker.print_worker_pref()
-        result.append(worker.get_shifts_array())
 
-    calculate_shifts(result)
+
+    calculate_shifts(workers)

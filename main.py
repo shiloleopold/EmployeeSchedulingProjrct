@@ -1,6 +1,6 @@
 from ortools.sat.python import cp_model
 from tkinter import *
-from itertools import cycle
+from itertools import islice
 
 num_nurses = 5
 num_shifts = 2
@@ -101,42 +101,63 @@ class Checkbar(Frame):
    def state(self):
       return map((lambda var: var.get()), self.vars)
 
-   def print_worker_pref(self):
-       print("worker pref: ", end='')
-       for idx, x in enumerate(self.state()):
-           if(x == 1):
-               print(self.name_shifts[idx])
-       print('')
 
-from itertools import islice
+
+
+class Worker:
+    def __init__(self, cb, name = ""):
+        self.name = name
+        self.checkbar = cb
+
+    def get_shifts_array(self):
+        result = []
+        for var in self.checkbar.vars:
+            result.append(var.get())
+        return list(chunk(result, num_shifts))
+
+    def get_chosen_shifts(self):
+        pref = []
+        for idx, x in enumerate(self.checkbar.state()):
+            if (x == 1):
+                pref.append(self.checkbar.name_shifts[idx])
+        return pref
+    def print_worker_pref(self):
+        print(self.name, end=': ')
+        print(self.get_chosen_shifts())
+
 def chunk(it, size):
     it = iter(it)
     return iter(lambda: list(islice(it, size)), [])
 
+
 def view():
     root = Tk()
+    T = Text(root, height=1, width=30)
     myLabel = Label(root, text="בחר משמרות שאתה לא מעוניין לעבוד בהם")
     myLabel.pack()
     lng = Checkbar(root, ['ראשון בוקר', 'ראשון ערב', 'שני בוקר', 'שני ערב', 'שלישי בוקר', 'שלישי ערב', 'רביעי בוקר', 'רביעי ערב', 'חמישי בוקר', 'חמישי ערב', 'שישי בוקר', 'שישי ערב', 'שבת בוקר','שבת ערב' ])
+    T.pack()
     lng.pack(side=TOP, fill=X)
     lng.config(relief=GROOVE, bd=2)
-    Button(root, text='סיום', command=root.quit).pack(side=BOTTOM)
+
+    worker = Worker(lng)
+
+    def quit_window():
+        worker_name = T.get("1.0", "end-1c")
+        worker.name = worker_name
+        root.quit()
+
+    Button(root, text='סיום', command=quit_window).pack(side=BOTTOM)
     root.mainloop()
 
-    result = []
-    for var in lng.vars:
-        result.append(var.get())
-    result = list(chunk(result, num_shifts))
-
-    lng.print_worker_pref()
-
     root.destroy()
-    return result
+    return worker
 
 if __name__ == '__main__':
     result = []
     for i in range(num_nurses):
-        worker_pref = view()
-        result.append(worker_pref)
+        worker = view()
+        worker.print_worker_pref()
+        result.append(worker.get_shifts_array())
 
     calculate_shifts(result)

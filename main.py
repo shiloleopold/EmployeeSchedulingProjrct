@@ -92,6 +92,7 @@ class Checkbar(Frame):
    def __init__(self, parent=None, picks=[], side=TOP, anchor=W):
       Frame.__init__(self, parent)
       self.vars = []
+      self.name_shifts = picks
       for pick in picks:
          var = IntVar()
          chk = Checkbutton(self, text=pick, variable=var)
@@ -99,6 +100,13 @@ class Checkbar(Frame):
          self.vars.append(var)
    def state(self):
       return map((lambda var: var.get()), self.vars)
+
+   def print_worker_pref(self):
+       print("worker pref: ", end='')
+       for idx, x in enumerate(self.state()):
+           if(x == 1):
+               print(self.name_shifts[idx])
+       print('')
 
 from itertools import islice
 def chunk(it, size):
@@ -114,11 +122,14 @@ def view():
     lng.config(relief=GROOVE, bd=2)
     Button(root, text='סיום', command=root.quit).pack(side=BOTTOM)
     root.mainloop()
+
     result = []
     for var in lng.vars:
         result.append(var.get())
     result = list(chunk(result, num_shifts))
-    print("worker pref: " + str(result))
+
+    lng.print_worker_pref()
+
     root.destroy()
     return result
 
@@ -127,5 +138,5 @@ if __name__ == '__main__':
     for i in range(num_nurses):
         worker_pref = view()
         result.append(worker_pref)
-    print("result: " + str(result))
+
     calculate_shifts(result)

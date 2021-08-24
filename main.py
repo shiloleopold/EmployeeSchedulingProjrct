@@ -1,29 +1,29 @@
 from ortools.sat.python import cp_model
 from tkinter import *
+from itertools import cycle
 
+num_nurses = 5
+num_shifts = 2
+num_days = 7
 
-
-def main():
+def calculate_shifts(shift_requests):
     # This program tries to find an optimal assignment of nurses to shifts
-    # (3 shifts per day, for 7 days), subject to some constraints (see below).
+    # (2 shifts per day, for 7 days), subject to some constraints (see below).
     # Each nurse can request to be assigned to specific shifts.
     # The optimal assignment maximizes the number of fulfilled shift requests.
-    num_nurses = 5
-    num_shifts = 2
-    num_days = 7
     all_nurses = range(num_nurses)
     all_shifts = range(num_shifts)
     all_days = range(num_days)
-    shift_requests = [[[0, 1], [0, 0], [0, 0], [0, 0], [0, 1],
-                       [0, 1, 0], [0, 1]],
-                      [[0, 0], [0, 0], [0, 0], [0, 0], [1, 0],
-                       [0, 0], [0, 1]],
-                      [[0, 0], [0, 0], [0, 0], [1, 0], [0, 0],
-                       [0, 0], [0, 0]],
-                      [[0, 1], [0, 0], [1, 0], [0, 0], [0, 0],
-                       [1, 0], [0, 0]],
-                      [[0, 0], [0, 1], [0, 0], [0, 0], [1, 0],
-                       [0, 1], [0, 0]]]
+    # shift_requests = [[[0, 1], [0, 0], [0, 0], [0, 0], [0, 1],
+    #                    [0, 1, 0], [0, 1]],
+    #                   [[0, 0], [0, 0], [0, 0], [0, 0], [1, 0],
+    #                    [0, 0], [0, 1]],
+    #                   [[0, 0], [0, 0], [0, 0], [1, 0], [0, 0],
+    #                    [0, 0], [0, 0]],
+    #                   [[0, 1], [0, 0], [1, 0], [0, 0], [0, 0],
+    #                    [1, 0], [0, 0]],
+    #                   [[0, 0], [0, 1], [0, 0], [0, 0], [1, 0],
+    #                    [0, 1], [0, 0]]]
     # Creates the model.
     model = cp_model.CpModel()
 
@@ -89,7 +89,7 @@ def main():
     print('  - wall time       : %f s' % solver.WallTime())
 
 class Checkbar(Frame):
-   def __init__(self, parent=None, picks=[], side=LEFT, anchor=W):
+   def __init__(self, parent=None, picks=[], side=TOP, anchor=W):
       Frame.__init__(self, parent)
       self.vars = []
       for pick in picks:
@@ -100,6 +100,10 @@ class Checkbar(Frame):
    def state(self):
       return map((lambda var: var.get()), self.vars)
 
+from itertools import islice
+def chunk(it, size):
+    it = iter(it)
+    return iter(lambda: list(islice(it, size)), [])
 
 def view():
     root = Tk()
@@ -113,9 +117,15 @@ def view():
     result = []
     for var in lng.vars:
         result.append(var.get())
-    print(result)
+    result = list(chunk(result, num_shifts))
+    print("worker pref: " + str(result))
+    root.destroy()
     return result
 
 if __name__ == '__main__':
-    result = view()
-    main()
+    result = []
+    for i in range(num_nurses):
+        worker_pref = view()
+        result.append(worker_pref)
+    print("result: " + str(result))
+    calculate_shifts(result)

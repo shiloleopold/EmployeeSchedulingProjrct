@@ -5,6 +5,8 @@ from itertools import islice
 num_nurses = 5
 num_shifts = 2
 num_days = 7
+min_shifts_per_weak = 2
+
 
 def calculate_shifts(workers):
     shift_requests = []
@@ -15,7 +17,7 @@ def calculate_shifts(workers):
     # (2 shifts per day, for 7 days), subject to some constraints (see below).
     # Each nurse can request to be assigned to specific shifts.
     # The optimal assignment maximizes the number of fulfilled shift requests.
-    all_nurses = range(num_nurses)
+    # all_nurses = range(num_nurses)
     all_shifts = range(num_shifts)
     all_days = range(num_days)
     # shift_requests = [[[0, 1], [0, 0], [0, 0], [0, 0], [0, 1],
@@ -34,63 +36,106 @@ def calculate_shifts(workers):
     # Creates shift variables.
     # shifts[(n, d, s)]: nurse 'n' works shift 's' on day 'd'.
     shifts = {}
-    for n in all_nurses:
+    for idx, n in enumerate(workers):
         for d in all_days:
             for s in all_shifts:
-                shifts[(n, d,
-                        s)] = model.NewBoolVar('shift_n%id%is%i' % (n, d, s))
+                shifts[(idx, d,
+                        s)] = model.NewBoolVar('shift_n%id%is%i' % (idx, d, s))
 
     # Each shift is assigned to exactly one nurse in .
+    # for d in all_days:
+    #     for s in all_shifts:
+    #         model.Add(sum(shifts[(n, d, s)] for n in all_nurses) == 1)
+
     for d in all_days:
         for s in all_shifts:
-            model.Add(sum(shifts[(n, d, s)] for n in all_nurses) == 1)
+            model.Add(sum(shifts[(idx, d, s)] for idx,n in enumerate(workers)) == 3)
 
     # Each nurse works at most one shift per day.
-    for n in all_nurses:
-        for d in all_days:
-            model.Add(sum(shifts[(n, d, s)] for s in all_shifts) <= 1)
+    #for n in all_nurses:
+     #   for d in all_days:
+      #      model.Add(sum(shifts[(n, d, s)] for s in all_shifts) <= 1)
 
     # Try to distribute the shifts evenly, so that each nurse works
     # min_shifts_per_nurse shifts. If this is not possible, because the total
     # number of shifts is not divisible by the number of nurses, some nurses will
     # be assigned one more shift.
-    min_shifts_per_nurse = (num_shifts * num_days) // num_nurses
-    if num_shifts * num_days % num_nurses == 0:
-        max_shifts_per_nurse = min_shifts_per_nurse
-    else:
-        max_shifts_per_nurse = min_shifts_per_nurse + 1
-    for n in all_nurses:
-        num_shifts_worked = 0
-        for d in all_days:
-            for s in all_shifts:
-                num_shifts_worked += shifts[(n, d, s)]
-        model.Add(min_shifts_per_nurse <= num_shifts_worked)
-        model.Add(num_shifts_worked <= max_shifts_per_nurse)
+    # min_shifts_per_nurse = (num_shifts * num_days) // len(workers)
+    # if num_shifts * num_days % num_nurses == 0:
+    #    max_shifts_per_nurse = min_shifts_per_nurse
+    # else:
+    #    max_shifts_per_nurse = min_shifts_per_nurse + 1
+    # for idx, worker in enumerate(workers):
+    #     num_shifts_worked = 0
+    #     for d in all_days:
+    #        for s in all_shifts:
+    #            num_shifts_worked += shifts[(idx, d, s)]
+    #     model.Add(min_shifts_per_nurse <= num_shifts_worked)
+    #     model.Add(num_shifts_worked <= max_shifts_per_nurse)
 
+    for idx, worker in enumerate(workers):
+        model.Add(sum(shifts[(idx, d, s)] for d in all_days for s in all_shifts) >= min_shifts_per_weak)
     # pylint: disable=g-complex-comprehension
     model.Minimize(
-        sum(shift_requests[n][d][s] * shifts[(n, d, s)] for n in all_nurses
+        sum(shift_requests[idx][d][s] * shifts[(idx, d, s)] for idx, n in enumerate(workers)
             for d in all_days for s in all_shifts))
     # Creates the solver and solve.
     solver = cp_model.CpSolver()
-    solver.Solve(model)
-    for d in all_days:
-        print('Day', d)
-        for n in all_nurses:
+    status = solver.Solve(model)
+ #   for d in all_days:
+  #      print('Day', d)
+   #     for n in all_nurses:
+    #        for s in all_shifts:
+     #           if solver.Value(shifts[(n, d, s)]) == 1:
+      #              if shift_requests[n][d][s] == 1:
+       #                 print('Nurse', n, 'works shift', s, '(requested).')
+        #            else:
+         #               print('Nurse', n, 'works shift', s, '(not requested).')
+        #print()
+    # request len
+    request_len = 0
+    for idx, n in enumerate(workers):
+        for d in all_days:
             for s in all_shifts:
-                if solver.Value(shifts[(n, d, s)]) == 1:
-                    if shift_requests[n][d][s] == 1:
-                        print('Nurse', n, 'works shift', s, '(requested).')
-                    else:
-                        print('Nurse', n, 'works shift', s, '(not requested).')
-        print()
+                if shift_requests[idx][d][s] == 1:
+                    request_len += 1
+
+    # print just if there is a solution
+    ret = []
+    result = []
+    if status != 3:
+        for d in all_days:
+            print('Day', d + 1)
+            result.append("Day " + str(d + 1))
+            for idx, n in enumerate(workers):
+                for s in all_shifts:
+                    ret.append(solver.Value(shifts[(idx, d, s)]))
+                    if solver.Value(shifts[(idx, d, s)]) == 1:
+                        if shift_requests[idx][d][s] == 1:
+                            print(n.name, 'works shift', s, '(not requested).')
+                            result.append('Nurse ' + str(idx) + ' works shift ' + str(s) + ' (not requested)')
+                        else:
+                            print(n.name, 'works shift', s)
+                            result.append('Nurse ' + str(idx) + ' works shift ' + str(s))
+            print("")
+            # Statistics.
+        print('Statistics')
+        print('  - Number of shift requests met = %i' % solver.ObjectiveValue(),
+                  '(out of', request_len, ')')
+
+        print('  - wall time       : %f s' % solver.WallTime())
+        print("")
+    else:
+        print("there is no solution!")
+        result.append("there is no solution!")
 
     # Statistics.
     print()
     print('Statistics')
-    print('  - Number of shift requests met = %i' % solver.ObjectiveValue(),
-          '(out of', num_nurses * min_shifts_per_nurse, ')')
+    #print('  - Number of shift requests met = %i' % solver.ObjectiveValue(),
+     #     '(out of', num_nurses * min_shifts_per_nurse, ')')
     print('  - wall time       : %f s' % solver.WallTime())
+
 
 class Checkbar(Frame):
    def __init__(self, parent=None, picks=[], side=TOP, anchor=W):
